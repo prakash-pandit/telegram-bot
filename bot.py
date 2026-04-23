@@ -16,7 +16,7 @@ logging.basicConfig(level=logging.INFO)
 # MONGODB SETUP
 # ─────────────────────────────────────────
 
-MONGO_URI = os.environ.get("MONGO_URI", "your_mongodb_uri_here")
+MONGO_URI = os.environ.get("MONGO_URI")
 mongo_client = MongoClient(MONGO_URI)
 db = mongo_client["botdb"]
 col = db["gamedata"]
