@@ -1,0 +1,4 @@
+python-telegram-bot==21.10
+pymongo==4.6.1
+flask==3.0.0
+Pillow==9.5.0
