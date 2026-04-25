@@ -135,7 +135,7 @@ def generate_wordle_image(guesses, total_attempts=6):
     draw = ImageDraw.Draw(img)
 
     font_title  = get_font(26, bold=True)
-    font_letter = get_font(38, bold=True)
+    font_letter = get_font(56, bold=True)
 
     draw_centered_text(draw, "WORDLE", 0, 14, W, font_title, (255,255,255))
 
