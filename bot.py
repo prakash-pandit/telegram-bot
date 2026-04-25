@@ -102,11 +102,10 @@ def generate_wordle_image(guesses, total_attempts=6):
     COLOR_BG     = (18, 18, 19)
     COLOR_TEXT   = (255, 255, 255)
 
-    # BIGGER CELLS
-    CELL_SIZE = 110
-    CELL_GAP = 12
-    PADDING = 25
-    HEADER_HEIGHT = 70
+    CELL_SIZE = 80
+    CELL_GAP = 8
+    PADDING = 24
+    HEADER_HEIGHT = 60
 
     width = PADDING * 2 + 5 * CELL_SIZE + 4 * CELL_GAP
     height = PADDING * 2 + HEADER_HEIGHT + total_attempts * CELL_SIZE + (total_attempts - 1) * CELL_GAP
@@ -114,25 +113,13 @@ def generate_wordle_image(guesses, total_attempts=6):
     img = Image.new("RGB", (width, height), COLOR_BG)
     draw = ImageDraw.Draw(img)
 
-    # Bigger title font
-    try:
-        title_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 45)
-    except:
-        title_font = ImageFont.load_default()
-    
-    draw.text((width // 2 - 55, 18), "WORDLE", fill=COLOR_TEXT, font=title_font)
+    draw.text((width // 2 - 35, 15), "WORDLE", fill=COLOR_TEXT)
 
     color_map = {
         '🟩': COLOR_GREEN,
         '🟨': COLOR_YELLOW,
         '⬜': COLOR_GRAY
     }
-
-    # Big letter font
-    try:
-        letter_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 85)
-    except:
-        letter_font = ImageFont.load_default()
 
     for row in range(total_attempts):
         for col in range(5):
@@ -147,12 +134,13 @@ def generate_wordle_image(guesses, total_attempts=6):
                 color = COLOR_EMPTY
                 letter = ""
             
-            # Draw box with thicker border
-            draw.rectangle([x, y, x + CELL_SIZE, y + CELL_SIZE], fill=color, outline=COLOR_TEXT, width=3)
+            draw.rectangle([x, y, x + CELL_SIZE, y + CELL_SIZE], fill=color, outline=COLOR_TEXT, width=2)
             
-            # Draw letter LARGE and centered
+            # BIG LETTER inside the box
             if letter:
-                draw.text((x + 30, y + 18), letter, fill=COLOR_TEXT, font=letter_font)
+                for offset in range(-2, 3):
+                    draw.text((x + 32 + offset, y + 28), letter, fill=COLOR_TEXT)
+                    draw.text((x + 32, y + 28 + offset), letter, fill=COLOR_TEXT)
 
     return to_buf(img)
 
