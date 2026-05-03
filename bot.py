@@ -1851,8 +1851,7 @@ async def summon(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(
                 f"❌ <b>Not enough coins!</b>\n\n"
                 f"💰 Need: {cost:,} coins\n"
-                f"💳 You have: {coins:,} coins\n"
-                f"💡 Use /bonus or /checkin to earn free coins!",
+                f"💳 You have: {coins:,} coins",
                 parse_mode="HTML"
             )
             return
@@ -1884,147 +1883,176 @@ async def summon(update: Update, context: ContextTypes.DEFAULT_TYPE):
         char_anime = html.escape(character.get('anime', '?'))
         char_id = character.get('card_id', '????')
         
-        # Battle intro messages
-        intro_messages = [
-            f"🌲 While exploring the forest, a wild {char_name} jumps out!",
-            f"⚡ A mysterious portal opens and {char_name} appears!",
-            f"🌙 Under the full moon, {char_name} reveals itself!",
-            f"🏯 Deep in the ruins, you encounter {char_name}!",
-            f"🌸 Cherry blossoms swirl as {char_name} descends!",
-            f"🔥 A heat wave blasts as {char_name} emerges!",
-            f"💎 A sparkling light materializes into {char_name}!",
-            f"🌊 From the mist, {char_name} appears!"
+        # ========== ANIMATION SEQUENCE ==========
+        
+        # Frame 1: Searching...
+        msg = await update.message.reply_text(
+            "🔍 <b>Searching for a character...</b>",
+            parse_mode="HTML"
+        )
+        await asyncio.sleep(0.8)
+        
+        # Frame 2: Found something!
+        await msg.edit_text(
+            "✨ <b>Something is appearing...</b>",
+            parse_mode="HTML"
+        )
+        await asyncio.sleep(0.8)
+        
+        # Frame 3: Character appears!
+        await msg.edit_text(
+            f"🌟 <b>A WILD CHARACTER APPEARED!</b> 🌟\n\n"
+            f"┌─────────────────────────┐\n"
+            f"│  🎴 {char_name}\n"
+            f"│  📺 {char_anime}\n"
+            f"│  ⭐ {rl}\n"
+            f"│  🪪 #{char_id}\n"
+            f"└─────────────────────────┘",
+            parse_mode="HTML"
+        )
+        await asyncio.sleep(1.2)
+        
+        # Frame 4: Battle starts!
+        await msg.edit_text(
+            f"🌟 <b>A WILD CHARACTER APPEARED!</b> 🌟\n\n"
+            f"┌─────────────────────────┐\n"
+            f"│  🎴 {char_name}\n"
+            f"│  📺 {char_anime}\n"
+            f"│  ⭐ {rl}\n"
+            f"│  🪪 #{char_id}\n"
+            f"└─────────────────────────┘\n\n"
+            f"⚔️ <b>BATTLE START!</b> ⚔️\n"
+            f"🗡️ You prepare to fight...",
+            parse_mode="HTML"
+        )
+        await asyncio.sleep(1.0)
+        
+        # Frame 5: Fighting animation
+        fight_moves = [
+            "💨 <i>You dash forward!</i>",
+            "⚡ <i>Lightning strike!</i>",
+            "🌀 <i>Spinning kick!</i>",
+            "🔥 <i>Fire blast!</i>",
+            "🗡️ <i>Blade slash!</i>"
         ]
         
-        # Attack messages (success)
-        attack_messages = [
-            (f"⚔️ You charge forward with your legendary blade!", f"💥 CRITICAL HIT! {char_name.upper()} is stunned!"),
-            (f"🌀 You unleash your secret technique!", f"✨ PERFECT COMBO! {char_name.upper()} surrenders!"),
-            (f"🔮 Ancient magic flows through your hands!", f"🌟 MAGIC SEAL! {char_name.upper()} is captured!"),
-            (f"🏹 Your aim is true, arrow flies straight!", f"🎯 HEADSHOT! {char_name.upper()} falls!"),
-            (f"💪 Your fighting spirit reaches its peak!", f"🔥 ULTIMATE MOVE! {char_name.upper()} is defeated!"),
-            (f"🗡️ Your blade glows with power!", f"⚡ ONE SLASH! {char_name.upper()} yields!"),
-            (f"🤜 You focus your energy into one punch!", f"💥 SHOCKWAVE! {char_name.upper()} is caught!"),
-            (f"📖 You read from an ancient scroll!", f"📜 SEAL ACTIVATED! {char_name.upper()} joins you!")
-        ]
+        for _ in range(2):
+            move = random.choice(fight_moves)
+            await msg.edit_text(
+                f"🌟 <b>A WILD CHARACTER APPEARED!</b> 🌟\n\n"
+                f"┌─────────────────────────┐\n"
+                f"│  🎴 {char_name}\n"
+                f"│  📺 {char_anime}\n"
+                f"│  ⭐ {rl}\n"
+                f"│  🪪 #{char_id}\n"
+                f"└─────────────────────────┘\n\n"
+                f"⚔️ <b>BATTLE!</b> ⚔️\n"
+                f"{move}",
+                parse_mode="HTML"
+            )
+            await asyncio.sleep(0.6)
         
-        # Escape messages (failure)
-        escape_messages = [
-            (f"🗡️ You swing wildly but miss!", f"🏃‍♂️ {char_name} laughs and disappears into the shadows!"),
-            (f"💨 Your attack is too slow!", f"🛡️ {char_name.upper()} blocks and vanishes!"),
-            (f"😱 You hesitate for a second!", f"🌙 {char_name} uses the confusion to escape!"),
-            (f"⚡ Your spell fizzles out!", f"🌀 {char_name} absorbs the magic and flees!"),
-            (f"🤕 You trip on a rock!", f"😂 {char_name.upper()} mocks you and runs away!"),
-            (f"🌪️ Your special move goes wide!", f"💨 {char_name.upper()} evaporates into thin air!"),
-            (f"😴 You blink at the wrong moment!", f"⏰ {char_name.upper()} escapes through a time rift!"),
-            (f"📱 Your phone rings mid-battle!", f"📞 Distracted! {char_name} takes the chance and flees!")
-        ]
-        
-        # Rare messages for high streaks (5+ fails)
-        high_streak_success = [
-            f"🔥🔥 ULTRA INSTINCT ACTIVATED! 🔥🔥",
-            f"💫 THE GODS BLESS YOUR ATTACK! 💫",
-            f"⚡⚡ LUCKY STRIKE! THE UNIVERSE HELPED YOU! ⚡⚡",
-            f"🌟 DESTINY INTERVENED! THIS WAS MEANT TO BE! 🌟"
-        ]
-        
-        high_streak_fail = [
-            f"😭 SO CLOSE! The card slipped through your fingers!",
-            f"💀 UNBELIEVABLE! It escaped at the last second!",
-            f"😤 This character is too legendary to catch... yet!",
-            f"🌀 A paradox happened! The character glitched away!"
-        ]
-        
+        # Frame 6: Result (based on roll)
         if roll < final_chance:
-            # SUCCESS - YOU WIN THE BATTLE!
+            # SUCCESS ANIMATION
+            await msg.edit_text(
+                f"🌟 <b>A WILD CHARACTER APPEARED!</b> 🌟\n\n"
+                f"┌─────────────────────────┐\n"
+                f"│  🎴 {char_name}\n"
+                f"│  📺 {char_anime}\n"
+                f"│  ⭐ {rl}\n"
+                f"│  🪪 #{char_id}\n"
+                f"└─────────────────────────┘\n\n"
+                f"💥 <b>CRITICAL HIT!</b> 💥\n"
+                f"🎉 <b>YOU WON!</b> 🎉",
+                parse_mode="HTML"
+            )
+            await asyncio.sleep(1.0)
+            
+            # Delete animation message
+            await msg.delete()
+            
+            # Process success
             users[user_id]["summon_streak"] = 0
             users[user_id]["coins"] -= cost
             summon_cooldowns[user_id] = now
             users[user_id]["characters"].append(dict(character))
             save_data()
             
-            intro = random.choice(intro_messages)
-            attack, critical = random.choice(attack_messages)
-            
-            # Bonus epic message for high streaks
-            epic_message = ""
-            if users[user_id]["summon_streak"] >= 5:
-                epic_message = f"\n{random.choice(high_streak_success)}\n"
-            
-            caption = (
-                f"✨🌟 <b>BATTLE SUMMON!</b> 🌟✨\n\n"
-                f"┌─────────────────────────────────┐\n"
-                f"│  🎴 <b>{char_name}</b>\n"
-                f"│  📺 {char_anime}\n"
-                f"│  ⭐ {rl}\n"
-                f"│  🪪 #{char_id}\n"
-                f"└─────────────────────────────────┘\n\n"
-                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                f"⚔️ <b>ROUND 1 — FIGHT!</b> ⚔️\n"
-                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-                f"{intro}\n\n"
-                f"{attack}\n"
-                f"{critical}{epic_message}\n"
-                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                f"🎉 <b>VICTORY!</b> {char_name.upper()} JOINS YOUR PARTY! 🎉\n"
-                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            # Final success message with photo
+            result_text = (
+                f"🎉 <b>VICTORY!</b> 🎉\n\n"
+                f"✅ <b>{char_name}</b> joined your collection!\n"
+                f"📺 {char_anime} | ⭐ {rl} | 🪪 #{char_id}\n\n"
+                f"━━━━━━━━━━━━━━━━\n"
                 f"💰 <b>Cost:</b> {cost:,} coins\n"
                 f"🎯 <b>Catch Rate:</b> {final_chance*100:.0f}%\n"
-                f"✅ <b>Streak Broken:</b> {char_name} ended your {users[user_id]['summon_streak']} fail streak!\n\n"
+                f"✅ <b>Streak:</b> RESET\n"
+                f"━━━━━━━━━━━━━━━━\n\n"
                 f"💾 <b>Added to /collection!</b>"
             )
             
             try:
-                await update.message.reply_photo(photo=character["file_id"], caption=caption, parse_mode="HTML")
+                await update.message.reply_photo(
+                    photo=character["file_id"],
+                    caption=result_text,
+                    parse_mode="HTML"
+                )
             except Exception as e:
-                logging.error(f"Failed to send summon photo: {e}")
-                await update.message.reply_text(caption, parse_mode="HTML")
+                await update.message.reply_text(result_text, parse_mode="HTML")
             
             await check_anime_completion(user_id, context)
             
         else:
-            # FAILURE - IT ESCAPES!
+            # FAILURE ANIMATION
+            await msg.edit_text(
+                f"🌟 <b>A WILD CHARACTER APPEARED!</b> 🌟\n\n"
+                f"┌─────────────────────────┐\n"
+                f"│  🎴 {char_name}\n"
+                f"│  📺 {char_anime}\n"
+                f"│  ⭐ {rl}\n"
+                f"│  🪪 #{char_id}\n"
+                f"└─────────────────────────┘\n\n"
+                f"🛡️ <b>{char_name} DODGED!</b> 🛡️\n"
+                f"💨 <b>IT ESCAPED!</b> 💨",
+                parse_mode="HTML"
+            )
+            await asyncio.sleep(1.0)
+            
+            # Delete animation message
+            await msg.delete()
+            
+            # Process failure
             users[user_id]["summon_streak"] += 1
             users[user_id]["coins"] -= cost
             summon_cooldowns[user_id] = now
             save_data()
             
-            intro = random.choice(intro_messages)
-            attack, escape = random.choice(escape_messages)
             next_chance = base_chance + min(0.30, users[user_id]["summon_streak"] * 0.05)
             bonus_percent = min(30, users[user_id]["summon_streak"] * 5)
             
-            sad_message = ""
-            if users[user_id]["summon_streak"] >= 5:
-                sad_message = f"\n{random.choice(high_streak_fail)}\n"
-            
-            await update.message.reply_text(
-                f"✨🌟 <b>BATTLE SUMMON!</b> 🌟✨\n\n"
-                f"┌─────────────────────────────────┐\n"
-                f"│  🎴 <b>{char_name}</b>\n"
-                f"│  📺 {char_anime}\n"
-                f"│  ⭐ {rl}\n"
-                f"│  🪪 #{char_id}\n"
-                f"└─────────────────────────────────┘\n\n"
-                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                f"⚔️ <b>ROUND 1 — FIGHT!</b> ⚔️\n"
-                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-                f"{intro}\n\n"
-                f"{attack}\n"
-                f"💨 <b>{escape}</b>{sad_message}\n"
-                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                f"😭 <b>DEFEAT!</b> {char_name.upper()} ESCAPED! 😭\n"
-                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            # Final failure message with photo
+            result_text = (
+                f"❌ <b>DEFEAT!</b> ❌\n\n"
+                f"💔 <b>{char_name}</b> escaped!\n"
+                f"📺 {char_anime} | ⭐ {rl} | 🪪 #{char_id}\n\n"
+                f"━━━━━━━━━━━━━━━━\n"
                 f"💸 <b>Coins lost:</b> {cost:,}\n"
-                f"📊 <b>Escape streak:</b> {users[user_id]['summon_streak']}\n"
-                f"🎲 <b>Next Catch Rate:</b> {next_chance*100:.0f}% (+{bonus_percent}% bonus)\n"
-                f"🏆 <b>Max Bonus:</b> +30% at 6 escapes\n\n"
-                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                f"💪 <b>Don't give up, warrior!</b>\n"
-                f"⚔️ Each battle makes you stronger!\n"
-                f"✨ Try <code>/summon</code> again for a rematch! ✨",
-                parse_mode="HTML"
+                f"📊 <b>Fail streak:</b> {users[user_id]['summon_streak']}\n"
+                f"🎲 <b>Next chance:</b> {next_chance*100:.0f}% (+{bonus_percent}%)\n"
+                f"━━━━━━━━━━━━━━━━\n\n"
+                f"💪 <b>Try /summon again!</b>"
             )
+            
+            try:
+                await update.message.reply_photo(
+                    photo=character["file_id"],
+                    caption=result_text,
+                    parse_mode="HTML"
+                )
+            except Exception as e:
+                await update.message.reply_text(result_text, parse_mode="HTML")
+
     
     await check_anime_completion(user_id, context)
 
