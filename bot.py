@@ -1829,7 +1829,7 @@ async def summon(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
     now = time.time()
     ensure_user(user_id, update)
-    cost = 7000
+    cost = 25000  # 25,000 coins per summon
 
     if update.effective_chat.id != GROUP_ID:
         await update.message.reply_text(
@@ -1840,9 +1840,10 @@ async def summon(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    if user_id in summon_cooldowns and now - summon_cooldowns[user_id] < 5:
-        remaining = 5 - (now - summon_cooldowns[user_id])
-        await update.message.reply_text(f"⏳ Please wait {int(remaining)+1} seconds!")
+    # 10 SECOND COOLDOWN
+    if user_id in summon_cooldowns and now - summon_cooldowns[user_id] < 10:
+        remaining = 10 - (now - summon_cooldowns[user_id])
+        await update.message.reply_text(f"⏳ Please wait {int(remaining)} seconds before summoning again!")
         return
 
     async with await get_user_lock(user_id):
@@ -1851,7 +1852,8 @@ async def summon(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(
                 f"❌ <b>Not enough coins!</b>\n\n"
                 f"💰 Need: {cost:,} coins\n"
-                f"💳 You have: {coins:,} coins",
+                f"💳 You have: {coins:,} coins\n"
+                f"💡 Use /bonus or /checkin to earn free coins!",
                 parse_mode="HTML"
             )
             return
@@ -2767,7 +2769,13 @@ async def spawn_character(chat_id, context):
     
     character = random.choice(valid_chars)
     rarity = character.get("rarity", 1)
-    start_price = {1: 10000, 2: 30000, 3: 80000, 4: 200000, 5: 500000}.get(rarity, 10000)
+    start_price = {
+    1: 50000,    # Common - 50k (was 10k)
+    2: 150000,   # Rare - 150k (was 30k)  
+    3: 350000,   # Epic - 350k (was 80k)
+    4: 750000,   # Legendary - 750k (was 200k)
+    5: 2000000   # Celebrity - 2M (was 500k)
+}.get(rarity, 50000)
     
     active_bid[chat_id] = {
         "character": character,
