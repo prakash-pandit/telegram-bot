@@ -1840,8 +1840,8 @@ async def summon(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    if user_id in summon_cooldowns and now - summon_cooldowns[user_id] < 30:
-        remaining = 30 - (now - summon_cooldowns[user_id])
+    if user_id in summon_cooldowns and now - summon_cooldowns[user_id] < 5:
+        remaining = 5 - (now - summon_cooldowns[user_id])
         await update.message.reply_text(f"⏳ Please wait {int(remaining)+1} seconds!")
         return
 
@@ -1852,7 +1852,7 @@ async def summon(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"❌ <b>Not enough coins!</b>\n\n"
                 f"💰 Need: {cost:,} coins\n"
                 f"💳 You have: {coins:,} coins\n"
-                f"💡 Tip: Use /bonus or /checkin to earn free coins!",
+                f"💡 Use /bonus or /checkin to earn free coins!",
                 parse_mode="HTML"
             )
             return
@@ -1861,34 +1861,170 @@ async def summon(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("❌ No characters available yet!")
             return
 
+        # --- PITY SYSTEM ---
+        if "summon_streak" not in users[user_id]:
+            users[user_id]["summon_streak"] = 0
+        
+        base_chance = 0.50
+        bonus = min(0.30, users[user_id]["summon_streak"] * 0.05)
+        final_chance = base_chance + bonus
+        
+        roll = random.random()
+        
+        # Select random character
         rarity_weights = {1: 55, 2: 25, 3: 10, 4: 8, 5: 2}
         rarity = random.choices(list(rarity_weights.keys()), weights=rarity_weights.values())[0]
         pool = [c for c in characters if c.get("rarity") == rarity]
         if not pool:
             pool = characters
-
         character = random.choice(pool)
         
-        users[user_id]["coins"] -= cost
-        summon_cooldowns[user_id] = now
-        users[user_id]["characters"].append(dict(character))
-        save_data()
-
-    rl = rarity_label(character.get("rarity", 1))
-    caption = (
-        f"✨ <b>NEW SUMMON!</b> ✨\n\n"
-        f"🎴 <b>{html.escape(character.get('name','?'))}</b>\n"
-        f"🎬 {html.escape(character.get('anime','?'))}\n"
-        f"⭐ {rl}\n"
-        f"🪪 #{character.get('card_id','????')}\n"
-        f"💸 Cost: {cost:,} coins"
-    )
-
-    try:
-        await update.message.reply_photo(photo=character["file_id"], caption=caption, parse_mode="HTML")
-    except Exception as e:
-        logging.error(f"Failed to send summon photo: {e}")
-        await update.message.reply_text(caption, parse_mode="HTML")
+        rl = rarity_label(character.get("rarity", 1))
+        char_name = html.escape(character.get('name', '?'))
+        char_anime = html.escape(character.get('anime', '?'))
+        char_id = character.get('card_id', '????')
+        
+        # Battle intro messages
+        intro_messages = [
+            f"🌲 While exploring the forest, a wild {char_name} jumps out!",
+            f"⚡ A mysterious portal opens and {char_name} appears!",
+            f"🌙 Under the full moon, {char_name} reveals itself!",
+            f"🏯 Deep in the ruins, you encounter {char_name}!",
+            f"🌸 Cherry blossoms swirl as {char_name} descends!",
+            f"🔥 A heat wave blasts as {char_name} emerges!",
+            f"💎 A sparkling light materializes into {char_name}!",
+            f"🌊 From the mist, {char_name} appears!"
+        ]
+        
+        # Attack messages (success)
+        attack_messages = [
+            (f"⚔️ You charge forward with your legendary blade!", f"💥 CRITICAL HIT! {char_name.upper()} is stunned!"),
+            (f"🌀 You unleash your secret technique!", f"✨ PERFECT COMBO! {char_name.upper()} surrenders!"),
+            (f"🔮 Ancient magic flows through your hands!", f"🌟 MAGIC SEAL! {char_name.upper()} is captured!"),
+            (f"🏹 Your aim is true, arrow flies straight!", f"🎯 HEADSHOT! {char_name.upper()} falls!"),
+            (f"💪 Your fighting spirit reaches its peak!", f"🔥 ULTIMATE MOVE! {char_name.upper()} is defeated!"),
+            (f"🗡️ Your blade glows with power!", f"⚡ ONE SLASH! {char_name.upper()} yields!"),
+            (f"🤜 You focus your energy into one punch!", f"💥 SHOCKWAVE! {char_name.upper()} is caught!"),
+            (f"📖 You read from an ancient scroll!", f"📜 SEAL ACTIVATED! {char_name.upper()} joins you!")
+        ]
+        
+        # Escape messages (failure)
+        escape_messages = [
+            (f"🗡️ You swing wildly but miss!", f"🏃‍♂️ {char_name} laughs and disappears into the shadows!"),
+            (f"💨 Your attack is too slow!", f"🛡️ {char_name.upper()} blocks and vanishes!"),
+            (f"😱 You hesitate for a second!", f"🌙 {char_name} uses the confusion to escape!"),
+            (f"⚡ Your spell fizzles out!", f"🌀 {char_name} absorbs the magic and flees!"),
+            (f"🤕 You trip on a rock!", f"😂 {char_name.upper()} mocks you and runs away!"),
+            (f"🌪️ Your special move goes wide!", f"💨 {char_name.upper()} evaporates into thin air!"),
+            (f"😴 You blink at the wrong moment!", f"⏰ {char_name.upper()} escapes through a time rift!"),
+            (f"📱 Your phone rings mid-battle!", f"📞 Distracted! {char_name} takes the chance and flees!")
+        ]
+        
+        # Rare messages for high streaks (5+ fails)
+        high_streak_success = [
+            f"🔥🔥 ULTRA INSTINCT ACTIVATED! 🔥🔥",
+            f"💫 THE GODS BLESS YOUR ATTACK! 💫",
+            f"⚡⚡ LUCKY STRIKE! THE UNIVERSE HELPED YOU! ⚡⚡",
+            f"🌟 DESTINY INTERVENED! THIS WAS MEANT TO BE! 🌟"
+        ]
+        
+        high_streak_fail = [
+            f"😭 SO CLOSE! The card slipped through your fingers!",
+            f"💀 UNBELIEVABLE! It escaped at the last second!",
+            f"😤 This character is too legendary to catch... yet!",
+            f"🌀 A paradox happened! The character glitched away!"
+        ]
+        
+        if roll < final_chance:
+            # SUCCESS - YOU WIN THE BATTLE!
+            users[user_id]["summon_streak"] = 0
+            users[user_id]["coins"] -= cost
+            summon_cooldowns[user_id] = now
+            users[user_id]["characters"].append(dict(character))
+            save_data()
+            
+            intro = random.choice(intro_messages)
+            attack, critical = random.choice(attack_messages)
+            
+            # Bonus epic message for high streaks
+            epic_message = ""
+            if users[user_id]["summon_streak"] >= 5:
+                epic_message = f"\n{random.choice(high_streak_success)}\n"
+            
+            caption = (
+                f"✨🌟 <b>BATTLE SUMMON!</b> 🌟✨\n\n"
+                f"┌─────────────────────────────────┐\n"
+                f"│  🎴 <b>{char_name}</b>\n"
+                f"│  📺 {char_anime}\n"
+                f"│  ⭐ {rl}\n"
+                f"│  🪪 #{char_id}\n"
+                f"└─────────────────────────────────┘\n\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"⚔️ <b>ROUND 1 — FIGHT!</b> ⚔️\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                f"{intro}\n\n"
+                f"{attack}\n"
+                f"{critical}{epic_message}\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"🎉 <b>VICTORY!</b> {char_name.upper()} JOINS YOUR PARTY! 🎉\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                f"💰 <b>Cost:</b> {cost:,} coins\n"
+                f"🎯 <b>Catch Rate:</b> {final_chance*100:.0f}%\n"
+                f"✅ <b>Streak Broken:</b> {char_name} ended your {users[user_id]['summon_streak']} fail streak!\n\n"
+                f"💾 <b>Added to /collection!</b>"
+            )
+            
+            try:
+                await update.message.reply_photo(photo=character["file_id"], caption=caption, parse_mode="HTML")
+            except Exception as e:
+                logging.error(f"Failed to send summon photo: {e}")
+                await update.message.reply_text(caption, parse_mode="HTML")
+            
+            await check_anime_completion(user_id, context)
+            
+        else:
+            # FAILURE - IT ESCAPES!
+            users[user_id]["summon_streak"] += 1
+            users[user_id]["coins"] -= cost
+            summon_cooldowns[user_id] = now
+            save_data()
+            
+            intro = random.choice(intro_messages)
+            attack, escape = random.choice(escape_messages)
+            next_chance = base_chance + min(0.30, users[user_id]["summon_streak"] * 0.05)
+            bonus_percent = min(30, users[user_id]["summon_streak"] * 5)
+            
+            sad_message = ""
+            if users[user_id]["summon_streak"] >= 5:
+                sad_message = f"\n{random.choice(high_streak_fail)}\n"
+            
+            await update.message.reply_text(
+                f"✨🌟 <b>BATTLE SUMMON!</b> 🌟✨\n\n"
+                f"┌─────────────────────────────────┐\n"
+                f"│  🎴 <b>{char_name}</b>\n"
+                f"│  📺 {char_anime}\n"
+                f"│  ⭐ {rl}\n"
+                f"│  🪪 #{char_id}\n"
+                f"└─────────────────────────────────┘\n\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"⚔️ <b>ROUND 1 — FIGHT!</b> ⚔️\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                f"{intro}\n\n"
+                f"{attack}\n"
+                f"💨 <b>{escape}</b>{sad_message}\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"😭 <b>DEFEAT!</b> {char_name.upper()} ESCAPED! 😭\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                f"💸 <b>Coins lost:</b> {cost:,}\n"
+                f"📊 <b>Escape streak:</b> {users[user_id]['summon_streak']}\n"
+                f"🎲 <b>Next Catch Rate:</b> {next_chance*100:.0f}% (+{bonus_percent}% bonus)\n"
+                f"🏆 <b>Max Bonus:</b> +30% at 6 escapes\n\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"💪 <b>Don't give up, warrior!</b>\n"
+                f"⚔️ Each battle makes you stronger!\n"
+                f"✨ Try <code>/summon</code> again for a rematch! ✨",
+                parse_mode="HTML"
+            )
     
     await check_anime_completion(user_id, context)
 
